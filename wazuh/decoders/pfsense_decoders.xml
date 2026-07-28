@@ -1,0 +1,10 @@
+<!-- pfSense manda el filterlog sin hostname, engancho por prematch y no por program_name -->
+<decoder name="pfsense-fw">
+  <prematch>match,block</prematch>
+</decoder>
+
+<decoder name="pfsense-fw">
+  <parent>pfsense-fw</parent>
+  <regex type="pcre2">match,block,\w+,\d+,[^,]*,[^,]*,\d+,\d+,\d+,[^,]*,\d+,(\w+),\d+,(\d+\.\d+\.\d+\.\d+),(\d+\.\d+\.\d+\.\d+),(\d+),(\d+)</regex>
+  <order>protocol,srcip,dstip,srcport,dstport</order>
+</decoder>

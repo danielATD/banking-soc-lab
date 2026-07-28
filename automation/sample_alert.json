@@ -1,0 +1,13 @@
+{
+  "rule": {
+    "level": 12,
+    "description": "sshd: Multiple authentication failures (posible fuerza bruta)",
+    "id": "5712",
+    "mitre": { "id": ["T1110"], "technique": ["Brute Force"] }
+  },
+  "agent": { "id": "003", "name": "cde-core-ubuntu" },
+  "data": {
+    "srcip": "45.135.232.17",
+    "dstuser": "root"
+  }
+}

@@ -1,0 +1,23 @@
+# Secretos y variables de entorno
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+
+# Imágenes de VM e ISOs — nunca al repo
+*.iso
+*.ova
+*.vdi
+*.7z
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
