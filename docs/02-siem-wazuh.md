@@ -1,12 +1,12 @@
 # Fase 2 — SIEM + EDR + Active Directory (Wazuh + Sysmon + AD)
 
 > Registro técnico vivo de la fase. Qué se hace, dónde se configura y cómo repetirlo.
-> Cubre del anuncio Credicorp: **SIEM + EDR**. Inicio: 22 jul 2026.
+> Cubre la parte de **SIEM + EDR** del anuncio de Credicorp. Inicio: 22 jul 2026.
 
 ## Objetivo de la fase
-Desplegar **Wazuh** (Manager + Indexer + Dashboard) como SIEM/EDR central en la zona SOC, y hacer
-que ingiera telemetría de las 4 zonas: logs de pfSense (firewall), endpoints Windows (AD + Sysmon)
-y Linux (CDE), con FIM sobre el CDE y una respuesta activa básica.
+Desplegar Wazuh (Manager + Indexer + Dashboard) como SIEM/EDR central en la zona SOC y hacer que
+ingiera telemetría de las 4 zonas: logs de pfSense (firewall), endpoints Windows (AD + Sysmon) y
+Linux (CDE), con FIM sobre el CDE y una respuesta activa básica.
 
 ## Decisiones de la fase
 | Fecha | Decisión | Por qué |
@@ -28,7 +28,8 @@ y Linux (CDE), con FIM sobre el CDE y una respuesta activa básica.
 - **Wazuh Server (Manager)** — recibe los datos de los agentes y de syslog, aplica las reglas de
   detección y genera alertas.
 - **Wazuh Dashboard** — la interfaz web (fork de OpenSearch Dashboards) donde se investiga.
-El script `wazuh-install.sh -a` (all-in-one) instala los tres en la misma VM — correcto para un
+
+El script `wazuh-install.sh -a` (all-in-one) instala los tres en la misma VM, correcto para un
 homelab de un nodo.
 
 ## Comando de instalación (verificado 22/07 — Wazuh 4.14, docs oficiales)
@@ -40,30 +41,30 @@ curl -sO https://packages.wazuh.com/4.14/wazuh-install.sh && sudo bash ./wazuh-i
 ```
 
 ## Estado / progreso
-- [x] Descargar ISO Ubuntu Server 24.04 LTS → `~/Documents/SOC-lab/isos/`
+- [x] Descargar ISO Ubuntu Server 26.04 LTS → `~/Documents/SOC-lab/isos/`
 - [x] Crear la VM `Wazuh` (host-only vboxnet0, 8 GB RAM, 4 vCPU, disco 50 GB dinámico)
 - [x] Instalar Ubuntu Server 26.04 (23/07): IP estática `10.40.0.10/24` gw `10.40.0.1` DNS 1.1.1.1 ·
-      LVM **agrandado a disco completo** (el instalador deja `/` en ~24G por default → Edit
-      `ubuntu-lv` al máximo; quedó 48G) · OpenSSH ✅ · sin snaps (superficie mínima) · sin LUKS
-      (VM de lab; cifrado es para robo físico)
+      LVM agrandado a disco completo (el instalador deja `/` en ~24G por defecto → Edit
+      `ubuntu-lv` al máximo; quedó 48G) · OpenSSH activado · sin snaps (superficie mínima) · sin LUKS
+      (VM de lab; el cifrado es para robo físico)
 - [x] Verificación pre-Wazuh: IP ok, `/`=48G, **egreso a internet A TRAVÉS de pfSense**
       (gw 10.40.0.1 → NAT WAN) y DNS resolviendo — el servidor navega por el firewall del banco
 - [x] Correr `wazuh-install.sh -a` y acceder al dashboard (23/07, Wazuh 4.14)
 - [x] Recibir el syslog de pfSense (514/UDP) en el Manager — bloque `<remote>` + `tcpdump` OK (23/07)
 - [x] **Generar alertas** desde los bloqueos de pfSense: decoder propio `pfsense-fw` + reglas
-      `100100`/`100101`, verificado con `wazuh-logtest` **y en el dashboard** con un nmap real de Kali
+      `100100`/`100101`, verificado con `wazuh-logtest` y en el dashboard con un nmap real de Kali
       (evidencia `fase2-04`) (24/07)
 - [ ] DC Windows + AD en CORP, agentes, Sysmon, FIM, respuesta activa
 
 ## Gotchas vividos (para el writeup)
-- **"Skip Unattended Installation"** al crear la VM — sin eso VirtualBox instala solo con valores
+- **"Skip Unattended Installation"** al crear la VM. Sin eso, VirtualBox instala solo con valores
   inventados.
-- El DHCP de `vboxnet0` reparte `192.168.56.x` (rango default viejo de VBox) — irrelevante: todo
+- El DHCP de `vboxnet0` reparte `192.168.56.x` (rango antiguo por defecto de VBox). Irrelevante: todo
   el SOC va con IP estática. Pendiente cosmético: corregirlo o apagarlo.
-- **LVM al 50%**: el guided storage de Ubuntu asigna ~la mitad del disco a `/` — siempre revisar
-  el summary y agrandar `ubuntu-lv` ANTES de confirmar el formateo.
+- **LVM al 50%**: el guided storage de Ubuntu asigna ~la mitad del disco a `/`. Conviene revisar
+  siempre el summary y agrandar `ubuntu-lv` ANTES de confirmar el formateo.
 - "Remove installation medium": VirtualBox ya había expulsado el ISO solo (verificado con
-  `showvminfo`: puerto IDE `Empty, ejected`) — Enter y listo.
+  `showvminfo`: puerto IDE `Empty, ejected`). Enter y listo.
 
 ## Evidencia de la fase
 - `../evidence/fase2-00-kali-reubicada-lado-wan.png` — Kali movida al lado WAN (paso puente previo)
@@ -87,9 +88,9 @@ las tres fases por las que pasa un log: **pre-decoding → decoding → reglas**
    era el hostname.
 
 **Decisión:** en vez de tocar pfSense (instalar syslog-ng para reescribir el hostname), lo normalicé
-en el SIEM con un decoder propio — lo que hace un SOC cuando no controla el origen. Intento fallido y
-su lección: **redefinir el decoder `pf` de fábrica no funciona** (Wazuh mantiene su condición
-`program_name`); un decoder custom necesita **nombre propio**.
+en el SIEM con un decoder propio, lo que hace un SOC cuando no controla el origen. Intento fallido y
+su lección: redefinir el decoder `pf` de fábrica no funciona (Wazuh mantiene su condición
+`program_name`); un decoder custom necesita nombre propio.
 
 ### Lo que quedó (en `wazuh/`, desplegado en `/var/ossec/etc/`)
 

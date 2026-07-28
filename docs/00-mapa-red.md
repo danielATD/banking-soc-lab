@@ -1,11 +1,9 @@
-# Mapa de redes — "Banco Demo S.A." (referencia permanente)
+# Mapa de red — Banco Demo S.A.
 
-> **Para qué existe:** la chuleta de direccionamiento del lab. Qué red es cada zona, qué IP tiene
-> cada host (actual y planificado) y qué política la gobierna. Se actualiza al agregar o mover
-> cualquier host/zona. Última actualización: **2026-07-24**.
-> Cómo se construyó: `01-firewall.md` · el plan completo: `PROYECTO_SOC_BANCARIO.md` (fuera del repo).
+Referencia de direccionamiento del laboratorio por zona: red asignada, IP de cada host (actual y
+planificado) y política de firewall que la gobierna.
 
-## Topología
+## topología
 
 ```mermaid
 flowchart TB
@@ -43,9 +41,9 @@ flowchart TB
 ```
 
 Leyenda: **✅ vivo hoy** · **F*n*** = llega en esa fase · **\*** = IP *sugerida por convención*, aún
-sin asignar (confirmarla acá cuando el host exista).
+sin asignar (confirmarla aquí cuando el host exista).
 
-## Tabla maestra por zona
+## tabla maestra por zona
 
 | Zona (rol bancario) | Red / CIDR | pfSense | Red VirtualBox (tipo) | Hosts HOY | Hosts planificados (fase) |
 |---|---|---|---|---|---|
@@ -55,7 +53,9 @@ sin asignar (confirmarla acá cuando el host exista).
 | **CORP** (VLAN 30) — oficina + AD | `10.30.0.0/24` | `em3` · `10.30.0.1` | `lab-corp` (interna) | *(vacía)* | DC Windows Server `10.30.0.10`\* · estación empleado `10.30.0.50`\* (F2) |
 | **SOC/MGMT** (VLAN 40) — gestión y monitoreo | `10.40.0.0/24` | `em4` (LAN) · `10.40.0.1` | `vboxnet0` (**host-only**) | PC analista `10.40.0.2` ✅ · Wazuh `10.40.0.10` ✅ | TheHive/Shuffle/Nessus `10.40.0.11–.13`\* (F5/F6) |
 
-**Mapa NIC ↔ em ↔ zona (verificado por MAC el 21/07 — nunca confiar en el orden a ciegas):**
+## mapa NIC ↔ em ↔ zona
+
+Verificado por MAC el 21/07. El orden de las interfaces no es fiable a ciegas; esta tabla es la que manda.
 
 | NIC VBox | MAC | em | Zona |
 |---|---|---|---|
@@ -65,7 +65,7 @@ sin asignar (confirmarla acá cuando el host exista).
 | 4 | `08:00:27:9E:B2:F3` | em3 | CORP |
 | 5 | `08:00:27:27:1B:1C` | em4 | SOC (LAN) |
 
-## Convenciones de direccionamiento (la gramática del lab)
+## convenciones de direccionamiento
 
 1. **Segundo octeto = número de VLAN del diseño:** 10=DMZ · 20=CDE · 30=CORP · 40=SOC.
 2. **`.1` = pfSense**, gateway de cada zona interna.
@@ -75,7 +75,7 @@ sin asignar (confirmarla acá cuando el host exista).
 6. **Zonas internas SIN DHCP, todo IP estática** (a propósito: hasta el broadcast DHCP de un intruso
    muere en el default deny y queda loggeado). La única red con DHCP es la WAN (`lab-wan`).
 
-## Política de firewall vigente (Fase 1, verificada en el motor pf)
+## política de firewall vigente (Fase 1, verificada en el motor pf)
 
 Aliases: **`LAB_NETS`** = las 4 redes internas · **`EGRESO_WEB`** = puertos 53/80/443.
 
@@ -87,26 +87,3 @@ Aliases: **`LAB_NETS`** = las 4 redes internas · **`EGRESO_WEB`** = puertos 53/
 
 Pendiente declarado: **endurecer el egreso** de las zonas internas al final de la construcción
 (hoy es 53/80/443 abierto a cualquier destino externo).
-
-## Para la entrevista (defensa del diseño en 4 líneas)
-
-- **Segmentación como control PCI:** el CDE está aislado por default-deny (Req. 1); cada regla es un
-  "flujo de negocio autorizado" documentado, y el bloqueo inter-zona quedó **probado y loggeado**.
-- **El SOC en red host-only:** la gestión no comparte cable con las zonas de negocio; ninguna zona
-  alcanza al SIEM, pero el SIEM recibe la telemetría de todos (syslog/agentes hacia el `.10`).
-- **Kali en el lado WAN:** el atacante vive "en internet", como un atacante real — sus escaneos
-  cruzan el firewall y dejan rastro (default deny → syslog → alerta en Wazuh).
-- **Nemotécnico defendible:** segundo octeto = VLAN; `.1` gateway, `.10` servidores — en un incidente
-  leés una IP y sabés zona y rol al instante.
-
-## Discrepancias detectadas entre docs (24/07 — gana el más reciente)
-
-1. **WAN:** la tabla de `01-firewall.md` aún dice "NAT" simple y pfSense `10.0.2.15`; la bitácora
-   (22/07 noche, más reciente) la reemplazó por la **NAT Network `lab-wan`** — la WAN de pfSense ahora
-   toma DHCP de `lab-wan` (verificar el lease actual en el dashboard y fijarlo acá).
-2. **RAM:** el plan (`PROYECTO_SOC_BANCARIO.md`) presupuesta pfSense 1 GB y Wazuh 6 GB; lo construido
-   es **pfSense 2 GB** (bitácora) y **Wazuh 8 GB** (decisión 22/07 en `02-siem-wazuh.md`).
-3. **Decisión abierta:** el presupuesto de RAM del plan usa **una sola VM Ubuntu** para "CDE + portal
-   de banca con WAF" (2 GB), pero la arquitectura los pone en **zonas distintas** (portal en DMZ,
-   core en CDE). Al llegar la F3 hay que decidir: 2 VMs livianas (recomendado — respeta la
-   segmentación) o revisar el diseño. Anotado también como cola en la bitácora.
