@@ -153,5 +153,13 @@ resultó ser **tres causas apiladas**, y ninguna era la contraseña.
 - `(Get-WmiObject Win32_ComputerSystem).Domain` → `banco.lab`
 - `nltest /sc_verify:banco.lab` (PowerShell elevado) → `SUCCESS`
 
+> **Hallazgo posterior (auditando la evidencia `fase2-06`):** el `dsgetdc` de hoy responde
+> `DC: \\jperez.banco.lab`, pero la evidencia `fase2-05` (25/07) muestra `\\DC01.banco.lab` con el
+> **mismo Dom GUID y la misma IP** — es la misma máquina: el DC fue **renombrado a "jperez" por
+> accidente** (probablemente al confundir el campo de nombre de equipo mientras se creaba el
+> usuario). El dominio funciona igual (los SRV de DNS se re-registraron bajo el nombre nuevo), pero
+> queda programada la corrección: `Rename-Computer -NewName DC01 -Restart` en el DC y re-verificar
+> con `nltest /dsgetdc:banco.lab`. Lección: en un DC, cada ventana de `sysdm.cpl` cuenta.
+
 Snapshots de respaldo del estado: `fase2-dc-promovido` (DC01) y `fase2-estacion-creada` (estación),
 tomados en frío antes de la sesión.
