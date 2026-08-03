@@ -54,7 +54,13 @@ curl -sO https://packages.wazuh.com/4.14/wazuh-install.sh && sudo bash ./wazuh-i
 - [x] **Generar alertas** desde los bloqueos de pfSense: decoder propio `pfsense-fw` + reglas
       `100100`/`100101`, verificado con `wazuh-logtest` y en el dashboard con un nmap real de Kali
       (evidencia `fase2-04`) (24/07)
-- [ ] DC Windows + AD en CORP, agentes, Sysmon, FIM, respuesta activa
+- [x] DC Windows Server 2022 promovido a bosque `banco.lab` en CORP — `10.30.0.10`, AD DS + DNS,
+      verificado con `nltest /dsgetdc` (25-26/07, evidencia `fase2-05`)
+- [x] OU `Empleados` + usuario `jperez` creados en `dsa.msc` (03/08)
+- [x] Estación Win10 unida al dominio y login `banco\jperez` verificado (03/08, evidencia `fase2-06`;
+      receta y troubleshooting al final de este doc)
+- [ ] Agentes Wazuh + Sysmon en DC01 y estación (requiere abrir regla pfSense CORP→SOC 1514/tcp)
+- [ ] FIM sobre el CDE + respuesta activa básica
 
 ## Gotchas vividos (para el writeup)
 - **"Skip Unattended Installation"** al crear la VM. Sin eso, VirtualBox instala solo con valores
@@ -72,6 +78,8 @@ curl -sO https://packages.wazuh.com/4.14/wazuh-install.sh && sudo bash ./wazuh-i
 - `../evidence/fase2-02-dashboard-wazuh-primer-login.png` — dashboard de Wazuh, primer login
 - `../evidence/fase2-03-nmap-atacante-y-syslog-pfsense-tcpdump.png` — nmap de Kali + `tcpdump` viendo el syslog llegar al 514
 - `../evidence/fase2-04-alertas-pfsense-en-wazuh.png` — alertas `100100`/`100101` en el dashboard tras un nmap real
+- `../evidence/fase2-05-dominio-banco-lab-nltest.png` — bosque `banco.lab` promovido: `nltest /dsgetdc` con flags PDC GC KDC
+- `../evidence/fase2-06-estacion-unida-jperez.png` — estación unida al dominio: sesión `banco\jperez` con `dsgetdc` OK y `sc_verify` SUCCESS
 
 ## Por qué pfSense no generaba alertas (y cómo lo resolví)
 
@@ -105,3 +113,45 @@ generated*) y en vivo con un `nmap -sS` de Kali: en el dashboard aparecieron los
 la `100101` de escaneo. **Nota de tuning:** la `100100` a nivel 5 dispara una alerta por puerto; en
 producción el evento individual iría a nivel bajo y la alerta útil sería la correlación (el escaneo),
 para no inundar al analista — por eso Wazuh trae los eventos de firewall a nivel 0 de fábrica.
+
+## Unión de la estación Win10 al dominio (03/08) — receta y troubleshooting
+
+La estación (`10.30.0.50`, zona CORP) quedó unida a `banco.lab` con login de dominio funcionando.
+Lo valioso de la sesión fue el diagnóstico: el "contraseña incorrecta" que bloqueaba la unión
+resultó ser **tres causas apiladas**, y ninguna era la contraseña.
+
+### Receta (el camino directo)
+1. **Red primero.** La NIC de la VM debe estar en la red interna de la zona (`lab-corp`), no en el
+   NAT por defecto de VirtualBox. Verificar desde el host:
+   `VBoxManage showvminfo "estacion-corp" | grep "NIC 1"` → debe decir `Internal Network 'lab-corp'`.
+   Se puede recablear en caliente: `VBoxManage controlvm "estacion-corp" nic1 intnet lab-corp`.
+2. **IP estática** (en la zona no hay DHCP): `10.30.0.50/24`, gateway `10.30.0.1` (pfSense CORP) y
+   **DNS `10.30.0.10` — el DC.** El DNS es el paso crítico: sin él Windows no localiza el dominio.
+   Para la unión en sí pfSense puede estar apagada: estación y DC se hablan directo en `lab-corp`.
+3. **Prerrequisitos en el DC:** el usuario debe existir (`Get-ADUser jperez`); si no, crearlo en su
+   OU (`dsa.msc` → New → Organizational Unit `Empleados` → New → User). Para depurar, contraseña
+   sin símbolos (mayúsculas+minúsculas+números ya cumplen la complejidad) — inmune a los layouts.
+4. **Prueba de resolución:** `ping 10.30.0.10` y `nslookup banco.lab` (debe devolver `10.30.0.10`;
+   el "Server: UnKnown" es solo falta de zona inversa, cosmético).
+5. **Unión:** `sysdm.cpl` → Computer Name → Change → Domain `banco.lab` → credenciales en formato
+   **UPN** (`administrator@banco.lab`) → "Welcome to the banco.lab domain" → reboot.
+6. **Login de dominio:** Other user → `banco\jperez` (o `jperez@banco.lab`).
+
+### Troubleshooting real (lo que pasó, en orden de aparición)
+| Síntoma | Causa real | Fix |
+|---|---|---|
+| Login `jperez`: "user name or password is incorrect" (sesión anterior) | El usuario nunca se creó en AD (y la máquina ni estaba unida) — Windows da el mismo error genérico por seguridad | Crear OU + usuario; verificar con `Get-ADUser` antes de culpar a la contraseña |
+| `ping 10.30.0.10` timeout; `ipconfig` muestra `10.0.2.15`, gw `10.0.2.2`, DNS `10.0.2.3` | Esa tripleta es la firma del **NAT por defecto** de VirtualBox: la VM nunca estuvo en `lab-corp` | `VBoxManage controlvm ... nic1 intnet lab-corp` (en caliente) + IP estática |
+| Tras el recableo: `ping` "transmit failed. General failure" | El adaptador conserva estado viejo del NAT | Deshabilitar/habilitar el adaptador en `ncpa.cpl` |
+| El join rechaza `banco\administrator` | El formato NetBIOS no fue aceptado en este entorno | Usar el **UPN**: `administrator@banco.lab` |
+| `nltest /sc_verify:banco.lab` → ACCESS_DENIED como `jperez` | El comando exige admin **local**; `jperez` es usuario raso (menor privilegio operando como debe) | Verificar sin privilegios (`nltest /dsgetdc`, `(Get-WmiObject Win32_ComputerSystem).Domain`) o PowerShell elevado |
+| La VM se pausa sola: `DrvVD_DISKFULL` | Disco del host al 100% (VMs + snapshots llenaron la raíz) | Liberar espacio y `VBoxManage controlvm ... resume`. Regla nueva: `df -h /` antes de cada sesión |
+
+### Verificación final (03/08)
+- `whoami` → `banco\jperez`
+- `nltest /dsgetdc:banco.lab` → `\\DC01.banco.lab`, flags `PDC GC KDC`, dominio y bosque `banco.lab`
+- `(Get-WmiObject Win32_ComputerSystem).Domain` → `banco.lab`
+- `nltest /sc_verify:banco.lab` (PowerShell elevado) → `SUCCESS`
+
+Snapshots de respaldo del estado: `fase2-dc-promovido` (DC01) y `fase2-estacion-creada` (estación),
+tomados en frío antes de la sesión.
