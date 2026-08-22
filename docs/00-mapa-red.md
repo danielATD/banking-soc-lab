@@ -8,7 +8,7 @@ planificado) y política de firewall que la gobierna.
 ```mermaid
 flowchart TB
     subgraph WAN["WAN · lab-wan (NAT Network) · 10.0.2.0/24 · DHCP"]
-        KALI["Kali, atacante externo<br/>10.0.2.4 (DHCP) ✅"]
+        KALI["Kali, atacante externo<br/>10.0.2.4 (DHCP)"]
     end
 
     PF["pfSense · fw-banco.banco.lab<br/>WAN em0 por DHCP · en cada zona interna es el .1"]
@@ -27,9 +27,9 @@ flowchart TB
     end
 
     subgraph SOC["VLAN 40 · SOC/MGMT · vboxnet0 (host-only) · 10.40.0.0/24"]
-        PC["PC del analista (el host)<br/>10.40.0.2 ✅"]
-        WZ["Wazuh SIEM/EDR<br/>10.40.0.10 ✅"]
-        SOAR["F5/F6 · TheHive · Shuffle · Nessus<br/>10.40.0.11–.13 *"]
+        PC["PC del analista (el host)<br/>10.40.0.2"]
+        WZ["Wazuh SIEM/EDR<br/>10.40.0.10"]
+        SOAR["F5/F6 · TheHive · Shuffle · Nessus<br/>10.40.0.11-.13 *"]
     end
 
     KALI -->|"ataques (F3+)"| PF
@@ -40,18 +40,18 @@ flowchart TB
     PF -.->|"syslog UDP 514"| WZ
 ```
 
-Leyenda: **✅ vivo hoy** · **F*n*** = llega en esa fase · **\*** = IP *sugerida por convención*, aún
-sin asignar (confirmarla aquí cuando el host exista).
+Leyenda: **F*n*** = llega en esa fase · **\*** = IP sugerida, aún sin asignar. Lo que no lleva
+marca ya está desplegado y funcionando.
 
 ## tabla maestra por zona
 
 | Zona (rol bancario) | Red / CIDR | pfSense | Red VirtualBox (tipo) | Hosts HOY | Hosts planificados (fase) |
 |---|---|---|---|---|---|
-| **WAN**: "internet" simulada | `10.0.2.0/24` (DHCP) | `em0` · IP por DHCP | `lab-wan` (**NAT Network**) | Kali `10.0.2.4` ✅ | - |
+| **WAN**: "internet" simulada | `10.0.2.0/24` (DHCP) | `em0` · IP por DHCP | `lab-wan` (**NAT Network**) | Kali `10.0.2.4` | - |
 | **DMZ** (VLAN 10): banca en línea | `10.10.0.0/24` | `em1` · `10.10.0.1` | `lab-dmz` (interna) | *(vacía)* | Portal banca + WAF `10.10.0.10`\* (F3) |
 | **CDE** (VLAN 20): datos de tarjeta (PCI) | `10.20.0.0/24` | `em2` · `10.20.0.1` | `lab-cde` (interna) | *(vacía)* | Core banking Ubuntu + FIM `10.20.0.10`\* (F2/F5) |
 | **CORP** (VLAN 30): oficina + AD | `10.30.0.0/24` | `em3` · `10.30.0.1` | `lab-corp` (interna) | *(vacía)* | DC Windows Server `10.30.0.10`\* · estación empleado `10.30.0.50`\* (F2) |
-| **SOC/MGMT** (VLAN 40): gestión y monitoreo | `10.40.0.0/24` | `em4` (LAN) · `10.40.0.1` | `vboxnet0` (**host-only**) | PC analista `10.40.0.2` ✅ · Wazuh `10.40.0.10` ✅ | TheHive/Shuffle/Nessus `10.40.0.11–.13`\* (F5/F6) |
+| **SOC/MGMT** (VLAN 40): gestión y monitoreo | `10.40.0.0/24` | `em4` (LAN) · `10.40.0.1` | `vboxnet0` (**host-only**) | PC analista `10.40.0.2` · Wazuh `10.40.0.10` | TheHive/Shuffle/Nessus `10.40.0.11-.13`\* (F5/F6) |
 
 ## mapa NIC ↔ em ↔ zona
 

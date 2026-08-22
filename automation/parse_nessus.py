@@ -82,7 +82,7 @@ def render_markdown(scored: list, cde_net) -> str:
     for i, s in enumerate(scored[:15], 1):
         lines.append(
             f"| {i} | {s['risk_score']} | {s['severity']} | "
-            f"{'✅' if s['cde'] else ''} | {s['host']} | {s['name'][:50]} | {s['cve']} |"
+            f"{'sí' if s['cde'] else ''} | {s['host']} | {s['name'][:50]} | {s['cve']} |"
         )
     lines += [
         "",

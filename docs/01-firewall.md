@@ -1,8 +1,6 @@
 # Fase 1: red segmentada + firewall (pfSense)
 
-> **Registro técnico vivo de la fase**: qué se hizo, dónde se configura cada cosa y cómo repetirlo.
-> Se actualiza al cierre de cada bloque de trabajo. Al terminar la fase se convierte en el writeup
-> final (con las capturas de `../evidence/`). Fechas: 18–22 jul 2026. **Fase cerrada (22/07)**.
+> Notas técnicas de la fase, para poder repetirla. Fechas: 18-22 jul 2026. **Fase cerrada (22/07)**.
 
 ## Resumen de arquitectura de esta fase
 
@@ -23,7 +21,7 @@ Nemotécnico: **segundo octeto = número de VLAN del diseño** (10/20/30/40).
 
 ---
 
-## Las dos capas de configuración (clave para no perderse)
+## Las dos capas de configuración
 
 Toda interfaz del lab existe en dos lugares distintos, y se configura en este orden:
 
@@ -35,24 +33,17 @@ con `vboxmanage` (o la GUI de VirtualBox, que solo muestra 4 adaptadores; la CLI
 rol cumple cada una (WAN/LAN/OPT), su IP y sus reglas. Se configura en la consola de la VM
 (opciones 1 y 2 del menú) o en el GUI web.
 
-### ¿Por qué "em"? ¿Quién decide em0, em1…?
+### Por qué las interfaces se llaman em0..em4
 pfSense corre sobre FreeBSD, y FreeBSD nombra las interfaces según el **driver** de la placa.
 VirtualBox emula placas Intel 82540EM → driver `em` → interfaces `em0..em4`, numeradas por el
 orden del bus PCI (que coincide con el orden NIC 1..5 de VirtualBox). **Nunca confiar en el orden a
 ciegas:** se verifica cruzando las **MAC** que muestra pfSense contra `vboxmanage showvminfo`.
 
-### Mapa em ↔ zona de este lab (verificado por MAC el 21/07)
-| NIC VBox | MAC | em (pfSense) | Zona |
-|---|---|---|---|
-| 1 | 08:00:27:EC:1F:D1 | em0 | WAN |
-| 2 | 08:00:27:2A:CE:BE | em1 | DMZ |
-| 3 | 08:00:27:46:AC:4C | em2 | CDE |
-| 4 | 08:00:27:9E:B2:F3 | em3 | CORP |
-| 5 | 08:00:27:27:1B:1C | em4 | SOC (LAN) |
+El mapa NIC-em-zona verificado por MAC está en [`00-mapa-red.md`](00-mapa-red.md).
 
 ---
 
-## Lo que se hizo, paso a paso (y dónde se repite cada cosa)
+## Paso a paso
 
 ### 1. Redes virtuales en el host (capa VirtualBox): terminal del host, VM apagada
 ```bash
@@ -132,8 +123,8 @@ una vez y no cada regla. Mejora la mantenibilidad y el propio alias documenta qu
 ### Reglas por zona: GUI `Firewall → Rules → pestañas DMZ / CDE / CORP` (las mismas 2, en orden)
 | # | Acción | Proto | Source | Destino | Puerto dest | Log | Descripción |
 |---|---|---|---|---|---|---|---|
-| 1 | **Block** | Any | `<Zona> subnets` | alias `LAB_NETS` | * | ✅ | Denegar y loggear trafico inter-zona (PCI DSS Req.1 - segmentacion) |
-| 2 | **Pass** | TCP/UDP | `<Zona> subnets` | **any** | alias `EGRESO_WEB` | ✅ | Egreso web/DNS temporal para construccion - endurecer al final |
+| 1 | **Block** | Any | `<Zona> subnets` | alias `LAB_NETS` | * | sí | Denegar y loggear trafico inter-zona (PCI DSS Req.1 - segmentacion) |
+| 2 | **Pass** | TCP/UDP | `<Zona> subnets` | **any** | alias `EGRESO_WEB` | sí | Egreso web/DNS temporal para construccion - endurecer al final |
 
 - **El orden es la política:** el destino `any` de la regla 2 incluye a las otras zonas; el block
   de arriba atrapa el tráfico inter-zona antes (first match wins). Lo que llega vivo a la regla 2
@@ -179,16 +170,16 @@ sudo nmcli con up dmz
 
 | Comando | Resultado | Qué demuestra |
 |---|---|---|
-| `ping -c 3 10.20.0.1` | ✅ 100% loss | Segmentación DMZ→CDE, bloqueado por la regla propia (tracker `1784751273`) |
-| `ping -c 3 10.40.0.2` | ✅ 100% loss | La estación del analista (SOC) inalcanzable desde la DMZ |
-| `nslookup example.com` | ✅ resuelve vía 1.1.1.1 | Egreso UDP 53 permitido |
-| `curl -I https://example.com` | ✅ HTTP/2 200 | Egreso TCP 443 permitido |
-| `ping -c 3 8.8.8.8` | ✅ 100% loss | **Deny implícito**: ICMP no está en el pass (TCP/UDP) → muere solo |
+| `ping -c 3 10.20.0.1` | 100% loss | Segmentación DMZ→CDE, bloqueado por la regla propia (tracker `1784751273`) |
+| `ping -c 3 10.40.0.2` | 100% loss | La estación del analista (SOC) inalcanzable desde la DMZ |
+| `nslookup example.com` | resuelve vía 1.1.1.1 | Egreso UDP 53 permitido |
+| `curl -I https://example.com` | HTTP/2 200 | Egreso TCP 443 permitido |
+| `ping -c 3 8.8.8.8` | 100% loss | **Deny implícito**: ICMP no está en el pass (TCP/UDP) → muere solo |
 
 **En el log** (`Status → System Logs → Firewall`, filtrable por interfaz): los ICMP inter-zona
 aparecen bloqueados por **la regla propia** (la entrada cita la descripción "Denegar y loggear…" +
 tracker), los egresos en verde por la regla de egreso, y el ping a 8.8.8.8 por el
-`Default deny rule IPv4`. Tip GUI: la ✖ roja de cada entrada abre "Rule details" con
+`Default deny rule IPv4`. Tip GUI: el ícono rojo de cada entrada abre "Rule details" con
 la regla exacta que matcheó. **Bonus observado:** los broadcasts DHCP de Kali al bootear
 (`0.0.0.0:68 → 255.255.255.255:67`) cayeron en el default deny; la zona ni siquiera responde
 DHCP, coherente con el diseño de IPs estáticas.
@@ -203,7 +194,7 @@ DHCP, coherente con el diseño de IPs estáticas.
 - `../evidence/fase1-07-kali-egreso-y-deny-implicito.png`: Kali: DNS/HTTPS funcionando, ICMP a internet muerto
 
 ## Incidentes de la fase (lo que rompió y cómo se arregló)
-- **Kernel 7.0 vs DKMS (18–20/07):** el kernel más nuevo del host rompía el módulo `vboxdrv`;
+- **Kernel 7.0 vs DKMS (18-20/07):** el kernel más nuevo del host rompía el módulo `vboxdrv`;
   quitar los headers no bastó, hubo que **fijar GRUB** al kernel 6.17.0-35. Lección: fijar el
   kernel del host cuando se depende de módulos DKMS.
 - **E_ACCESSDENIED al crear vboxnet0 con IP 10.40.0.2 (21/07):** VirtualBox restringe los rangos

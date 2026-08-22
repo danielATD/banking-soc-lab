@@ -1,7 +1,6 @@
 # Fase 2: SIEM + EDR + Active Directory (Wazuh + Sysmon + AD)
 
-> Registro técnico vivo de la fase. Qué se hace, dónde se configura y cómo repetirlo.
-> Cubre la parte de **SIEM + EDR** del perfil de un analista SOC. Inicio: 22 jul 2026.
+> Notas técnicas de la fase. Inicio: 22 jul 2026.
 
 ## Objetivo de la fase
 Desplegar Wazuh (Manager + Indexer + Dashboard) como SIEM/EDR central en la zona SOC y hacer que
@@ -23,7 +22,7 @@ Linux (CDE), con FIM sobre el CDE y una respuesta activa básica.
 | PC de Daniel | 10.40.0.2 | Estación del analista (navega el dashboard) |
 | **Wazuh** | **10.40.0.10** | **SIEM/EDR (esta fase)** |
 
-## Componentes de Wazuh (para saber qué se instala)
+## Componentes de Wazuh
 - **Wazuh Indexer**: motor de búsqueda/almacenamiento (fork de OpenSearch). Guarda las alertas.
 - **Wazuh Server (Manager)**: recibe los datos de los agentes y de syslog, aplica las reglas de
   detección y genera alertas.
@@ -62,7 +61,7 @@ curl -sO https://packages.wazuh.com/4.14/wazuh-install.sh && sudo bash ./wazuh-i
 - [ ] Agentes Wazuh + Sysmon en DC01 y estación (requiere abrir regla pfSense CORP→SOC 1514/tcp)
 - [ ] FIM sobre el CDE + respuesta activa básica
 
-## Gotchas vividos (para el writeup)
+## Gotchas vividos
 - **"Skip Unattended Installation"** al crear la VM. Sin eso, VirtualBox instala solo con valores
   inventados.
 - El DHCP de `vboxnet0` reparte `192.168.56.x` (rango antiguo por defecto de VBox). Irrelevante: todo

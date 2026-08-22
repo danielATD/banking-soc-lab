@@ -1,12 +1,11 @@
 # Componente Python / SOAR del SOC bancario
 
-Scripts en Python que cubren la parte de automatización del trabajo de un SOC: enriquecimiento de IOCs, triage automático y reportes.
-Todos leen sus claves desde variables de entorno (`.env`); ninguna queda hardcodeada.
+Scripts en Python para automatizar tareas del SOC. Las claves van en `.env`, nunca en el código.
 
-| Script | Qué hace | Requisito que prueba |
+| Script | Qué hace | Área |
 |---|---|---|
-| `enrich_ioc.py` | Enriquece una IP/hash con VirusTotal + AbuseIPDB → veredicto | Threat intel / automatización |
-| `wazuh_soar_handler.py` | Webhook: recibe alertas de Wazuh, enriquece IOCs y abre caso en TheHive | **SOAR end-to-end en Python** |
+| `enrich_ioc.py` | Enriquece una IP/hash con VirusTotal + AbuseIPDB → veredicto | Threat intel |
+| `wazuh_soar_handler.py` | Webhook: recibe alertas de Wazuh, enriquece IOCs y abre caso en TheHive | SOAR de punta a punta |
 | `thehive_client.py` | Crea alertas/casos en TheHive vía REST | Gestión de casos / IR |
 | `bruteforce_detector.py` | Análisis de `auth.log`: detecta fuerza bruta SSH (T1110) | Análisis de logs |
 | `parse_nessus.py` | Reporte de vulnerabilidades priorizado (CDE ×2) desde CSV de Nessus | Gestión de vulnerabilidades |
@@ -39,9 +38,9 @@ curl -X POST http://127.0.0.1:5000/webhook \
 ## Dónde encaja en el pipeline
 
 ```
-Wazuh (alerta) ──webhook──► wazuh_soar_handler.py ──► enrich_ioc.py (VT + AbuseIPDB)
-                                     │
-                                     └──► thehive_client.py (crea caso) ──► notifica analista
+Wazuh (alerta) --webhook--> wazuh_soar_handler.py --> enrich_ioc.py (VT + AbuseIPDB)
+                                    |
+                                    +--> thehive_client.py (crea caso) --> notifica al analista
 ```
 
-La config de Wazuh (`ossec.conf`) que envía las alertas se documentará al montar la fase SOAR.
+La config de `ossec.conf` que manda las alertas al webhook queda documentada cuando monte la fase SOAR.

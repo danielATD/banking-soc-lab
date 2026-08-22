@@ -1,26 +1,27 @@
-# lab SOC bancario
+# Lab SOC bancario
 
-Monté el SOC de un banco en miniatura para practicar del lado defensivo: segmentar la red como pide PCI, enviar todo a un SIEM y escribir yo mismo las detecciones en vez de descargar reglas ya hechas. Corre entero en VirtualBox sobre un host de 30 GB de RAM. Cuatro zonas internas, un firewall, un SIEM y un dominio Windows, más una Kali afuera haciendo de atacante.
+Un banco en miniatura montado en VirtualBox para practicar del lado defensivo: red segmentada
+como pide PCI DSS, todo el log hacia un SIEM y las detecciones escritas por mí, no descargadas.
+Cuatro zonas internas, un firewall pfSense, un dominio Windows y una Kali afuera de atacante.
 
-Es un lab de estudio, en construcción. No es una arquitectura de producción ni pretende serlo: es el banco de pruebas donde rompo cosas para después detectarlas.
+Es un lab de estudio y está en construcción.
 
-## una detección, de punta a punta
+## La detección, de punta a punta
 
-Antes de la teoría, lo que hace. Kali escanea el firewall desde afuera:
+Kali escanea el firewall desde afuera:
 
 ```bash
-sudo nmap -Pn -sS 10.0.2.15     # la cara WAN de pfSense, desde la "internet" del lab
+sudo nmap -Pn -sS 10.0.2.15     # la cara WAN de pfSense
 ```
 
-pfSense bloquea cada puerto y lo registra. Ese log viaja por syslog hasta Wazuh, un decoder que escribí lo parsea, y dos reglas propias lo levantan: una por cada bloqueo y otra que reconoce el patrón y lo nombra.
+pfSense bloquea y registra cada intento. El log viaja por syslog a Wazuh, donde un decoder mío
+lo parsea y dos reglas propias lo convierten en alertas:
 
 ![Alertas de escaneo en el dashboard de Wazuh](evidence/fase2-04-alertas-pfsense-en-wazuh.png)
 
-*Las reglas `100100` (bloqueo, nivel 5) y `100101` ("posible escaneo de puertos", nivel 10) disparando tras el nmap. El `srcip` 10.0.2.4 es la Kali.*
+*Reglas `100100` (bloqueo, nivel 5) y `100101` ("posible escaneo de puertos", nivel 10). El `srcip` 10.0.2.4 es la Kali.*
 
-El escaneo entra por un lado y sale como una alerta con nombre y severidad por el otro. Ese circuito (evento, decoder, regla, alerta) es de lo que trata el lab.
-
-## arquitectura
+## Arquitectura
 
 Cuatro zonas internas más la WAN. El segundo octeto es el número de VLAN, y pfSense es el `.1` de cada red:
 
@@ -35,9 +36,11 @@ Cuatro zonas internas más la WAN. El segundo octeto es el número de VLAN, y pf
         +-- SOC    10.40.0.0/24   gestión y monitoreo               Wazuh .10 · analista .2
 ```
 
-Cada zona es un dominio de confianza distinto. El CDE no habla con nadie salvo lo explícitamente permitido, el SOC ve todo pero nadie entra al SOC, y el atacante vive del lado WAN: sus escaneos tienen que cruzar el firewall para dejar rastro. La segmentación no es decorativa: implementa el control de PCI DSS Req. 1, y la validé más abajo en vez de dejarla solo en el diagrama.
+Cada zona es un dominio de confianza distinto: el CDE solo habla lo explícitamente permitido,
+al SOC no entra nadie, y los ataques tienen que cruzar el firewall para dejar rastro. Es el
+control de segmentación de PCI DSS Req. 1, y está validado con pruebas más abajo.
 
-## stack
+## Stack
 
 | Componente | Versión | Rol | Dónde |
 |---|---|---|---|
@@ -48,46 +51,43 @@ Cada zona es un dominio de confianza distinto. El CDE no habla con nadie salvo l
 | Kali Linux | 2026.2 | Atacante externo | WAN · 10.0.2.4 |
 | VirtualBox | - | Hipervisor (host de 30 GB) | - |
 
-Wazuh corre sobre Ubuntu Server 26.04. Le di 8 GB de RAM porque el Indexer (OpenSearch) es de Java y con menos se ahoga.
+Wazuh corre sobre Ubuntu Server con 8 GB de RAM; con menos, el Indexer (Java) se ahoga.
 
-## detección
+## Detección
 
 | Regla | Qué caza | MITRE ATT&CK | Nivel | Marco |
 |---|---|---|---|---|
 | `100100` | Cada bloqueo del firewall (origen → destino:puerto) | - | 5 | PCI DSS 1.4 |
 | `100101` | 15+ bloqueos del mismo origen en 60 s (escaneo) | T1595 · Active Scanning | 10 | PCI DSS 11.4 |
 
-Las dos cuelgan de un decoder propio, `pfsense-fw`. Decoder y reglas están en [`wazuh/`](wazuh/).
+Las dos cuelgan de un decoder propio, `pfsense-fw`. Hizo falta porque pfSense manda el
+`filterlog` por syslog sin hostname (bug conocido de FreeBSD) y el decoder de fábrica nunca
+llega a arrancar. Lo resolví del lado del SIEM; el detalle está en
+[`docs/02-siem-wazuh.md`](docs/02-siem-wazuh.md). Decoder y reglas: [`wazuh/`](wazuh/).
 
-Por qué un decoder propio y no el de Wazuh: pfSense envía el `filterlog` por syslog **sin el campo hostname** (comportamiento conocido de FreeBSD). El decoder oficial engancha por `program_name`, que sin hostname queda vacío, así que nunca arrancaba. Lo normalicé del lado del SIEM, que es lo que hace un SOC cuando no controla el equipo de origen, enganchando por el patrón del log en vez de por el hostname. El detalle está en [`docs/02-siem-wazuh.md`](docs/02-siem-wazuh.md).
+## Validación de la segmentación
 
-## cómo validé la segmentación
-
-"Configurado" no es "funciona". Levanté una VM temporal en la DMZ como servidor comprometido y corrí una prueba de cinco caras: lo prohibido (ping a otra zona, bloqueado y loggeado por mi regla), lo permitido (DNS y HTTPS de salida, pasan) y lo no contemplado (ping a internet, detenido por el default-deny). Cada resultado con doble evidencia: la terminal del atacante y el log del firewall.
+Levanté una VM en la DMZ haciendo de servidor comprometido y probé las tres caras de la
+política: lo prohibido (bloqueado y loggeado por mi regla), lo permitido (DNS y HTTPS salen) y
+lo no contemplado (muere en el default-deny). Cada resultado con dos evidencias: la terminal
+del atacante y el log del firewall.
 
 ![Bloqueo inter-zona en el log de pfSense](evidence/fase1-05-log-bloqueo-interzona.png)
 
-*El firewall bloqueando tráfico inter-zona, con la descripción de mi regla y el tracker ID en el log.*
+## Estado
 
-## estado
+- Fase 1 (segmentación y firewall): cerrada. Reglas verificadas en el motor `pf`, no solo en la GUI.
+- Fase 2 (SIEM y Active Directory): en curso. Wazuh detectando; dominio `banco.lab` con estaciones unidas.
+- Después: agentes Wazuh + Sysmon en los Windows, FIM sobre el CDE y una fase cloud en AWS.
 
-**Fase 1 (segmentación y firewall): cerrada.** Cuatro zonas más la WAN, reglas de bloqueo inter-zona verificadas en el motor `pf` (no solo en la GUI), egreso controlado.
+## Aviso
 
-**Fase 2 (SIEM y Active Directory): en curso.** Wazuh desplegado, ingesta de pfSense por syslog, decoder y reglas de detección funcionando de punta a punta. Dominio `banco.lab` montado y estaciones uniéndose.
+El lab es inseguro a propósito (contraseñas débiles, servicios expuestos entre zonas) y vive
+aislado en redes internas de VirtualBox. No reutilizar nada de esto en producción.
 
-Lo que sigue: agente Wazuh y Sysmon en los Windows (telemetría de endpoint), FIM sobre el CDE, y una mini-fase en AWS (IAM/MFA, EC2, CloudTrail hacia Wazuh) para cubrir la parte cloud.
+## Mapa del repo
 
-## un problema que valió la pena
-
-El más largo de resolver fue el del hostname. El transporte funcionaba (un `tcpdump` mostraba los paquetes syslog llegando al puerto 514), pero en el dashboard no aparecía ninguna alerta. Llegar no es lo mismo que procesarse. Lo desarmé con `wazuh-logtest`, que muestra las tres fases por las que pasa un log (pre-decoding, decoding, reglas), y ahí quedó a la vista: Wazuh tomaba `filterlog[pid]:` como hostname y dejaba el programa vacío. De ahí salió el decoder propio. Está contado entero en [`docs/02-siem-wazuh.md`](docs/02-siem-wazuh.md).
-
-## aviso
-
-Este lab es inseguro a propósito: contraseñas débiles, servicios expuestos entre zonas para poder probar detecciones. Vive aislado en redes internas de VirtualBox y no toca ninguna red real. No reutilices estas configuraciones en producción.
-
-## mapa del repo
-
-- [`docs/`](docs/): el detalle técnico por fase: firewall, SIEM, mapa de red.
-- [`wazuh/`](wazuh/): decoders y reglas de detección propias.
-- [`evidence/`](evidence/): capturas de cada paso con resultado visible.
+- [`docs/`](docs/): el detalle técnico por fase.
+- [`wazuh/`](wazuh/): decoders y reglas propias.
+- [`evidence/`](evidence/): capturas de cada paso.
 - [`automation/`](automation/): scripts de la fase SOAR (en preparación).
