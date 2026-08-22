@@ -1,7 +1,7 @@
-# Fase 2 — SIEM + EDR + Active Directory (Wazuh + Sysmon + AD)
+# Fase 2: SIEM + EDR + Active Directory (Wazuh + Sysmon + AD)
 
 > Registro técnico vivo de la fase. Qué se hace, dónde se configura y cómo repetirlo.
-> Cubre la parte de **SIEM + EDR** del anuncio de Credicorp. Inicio: 22 jul 2026.
+> Cubre la parte de **SIEM + EDR** del perfil de un analista SOC. Inicio: 22 jul 2026.
 
 ## Objetivo de la fase
 Desplegar Wazuh (Manager + Indexer + Dashboard) como SIEM/EDR central en la zona SOC y hacer que
@@ -24,15 +24,15 @@ Linux (CDE), con FIM sobre el CDE y una respuesta activa básica.
 | **Wazuh** | **10.40.0.10** | **SIEM/EDR (esta fase)** |
 
 ## Componentes de Wazuh (para saber qué se instala)
-- **Wazuh Indexer** — motor de búsqueda/almacenamiento (fork de OpenSearch). Guarda las alertas.
-- **Wazuh Server (Manager)** — recibe los datos de los agentes y de syslog, aplica las reglas de
+- **Wazuh Indexer**: motor de búsqueda/almacenamiento (fork de OpenSearch). Guarda las alertas.
+- **Wazuh Server (Manager)**: recibe los datos de los agentes y de syslog, aplica las reglas de
   detección y genera alertas.
-- **Wazuh Dashboard** — la interfaz web (fork de OpenSearch Dashboards) donde se investiga.
+- **Wazuh Dashboard**: la interfaz web (fork de OpenSearch Dashboards) donde se investiga.
 
 El script `wazuh-install.sh -a` (all-in-one) instala los tres en la misma VM, correcto para un
 homelab de un nodo.
 
-## Comando de instalación (verificado 22/07 — Wazuh 4.14, docs oficiales)
+## Comando de instalación (verificado 22/07 con Wazuh 4.14, docs oficiales)
 ```bash
 # DENTRO de la VM Ubuntu, ya con IP y actualizada:
 curl -sO https://packages.wazuh.com/4.14/wazuh-install.sh && sudo bash ./wazuh-install.sh -a
@@ -48,13 +48,13 @@ curl -sO https://packages.wazuh.com/4.14/wazuh-install.sh && sudo bash ./wazuh-i
       `ubuntu-lv` al máximo; quedó 48G) · OpenSSH activado · sin snaps (superficie mínima) · sin LUKS
       (VM de lab; el cifrado es para robo físico)
 - [x] Verificación pre-Wazuh: IP ok, `/`=48G, **egreso a internet A TRAVÉS de pfSense**
-      (gw 10.40.0.1 → NAT WAN) y DNS resolviendo — el servidor navega por el firewall del banco
+      (gw 10.40.0.1 → NAT WAN) y DNS resolviendo; el servidor navega por el firewall del banco
 - [x] Correr `wazuh-install.sh -a` y acceder al dashboard (23/07, Wazuh 4.14)
-- [x] Recibir el syslog de pfSense (514/UDP) en el Manager — bloque `<remote>` + `tcpdump` OK (23/07)
+- [x] Recibir el syslog de pfSense (514/UDP) en el Manager: bloque `<remote>` + `tcpdump` OK (23/07)
 - [x] **Generar alertas** desde los bloqueos de pfSense: decoder propio `pfsense-fw` + reglas
       `100100`/`100101`, verificado con `wazuh-logtest` y en el dashboard con un nmap real de Kali
       (evidencia `fase2-04`) (24/07)
-- [x] DC Windows Server 2022 promovido a bosque `banco.lab` en CORP — `10.30.0.10`, AD DS + DNS,
+- [x] DC Windows Server 2022 promovido a bosque `banco.lab` en CORP: `10.30.0.10`, AD DS + DNS,
       verificado con `nltest /dsgetdc` (25-26/07, evidencia `fase2-05`)
 - [x] OU `Empleados` + usuario `jperez` creados en `dsa.msc` (03/08)
 - [x] Estación Win10 unida al dominio y login `banco\jperez` verificado (03/08, evidencia `fase2-06`;
@@ -73,13 +73,13 @@ curl -sO https://packages.wazuh.com/4.14/wazuh-install.sh && sudo bash ./wazuh-i
   `showvminfo`: puerto IDE `Empty, ejected`). Enter y listo.
 
 ## Evidencia de la fase
-- `../evidence/fase2-00-kali-reubicada-lado-wan.png` — Kali movida al lado WAN (paso puente previo)
-- `../evidence/fase2-01-ubuntu-verificacion-ip-disco-egreso.png` — verificación pre-instalación: IP 10.40.0.10, /=48G, ping por pfSense + DNS OK
-- `../evidence/fase2-02-dashboard-wazuh-primer-login.png` — dashboard de Wazuh, primer login
-- `../evidence/fase2-03-nmap-atacante-y-syslog-pfsense-tcpdump.png` — nmap de Kali + `tcpdump` viendo el syslog llegar al 514
-- `../evidence/fase2-04-alertas-pfsense-en-wazuh.png` — alertas `100100`/`100101` en el dashboard tras un nmap real
-- `../evidence/fase2-05-dominio-banco-lab-nltest.png` — bosque `banco.lab` promovido: `nltest /dsgetdc` con flags PDC GC KDC
-- `../evidence/fase2-06-estacion-unida-jperez.png` — estación unida al dominio: sesión `banco\jperez` con `dsgetdc` OK y `sc_verify` SUCCESS
+- `../evidence/fase2-00-kali-reubicada-lado-wan.png`: Kali movida al lado WAN (paso puente previo)
+- `../evidence/fase2-01-ubuntu-verificacion-ip-disco-egreso.png`: verificación pre-instalación: IP 10.40.0.10, /=48G, ping por pfSense + DNS OK
+- `../evidence/fase2-02-dashboard-wazuh-primer-login.png`: dashboard de Wazuh, primer login
+- `../evidence/fase2-03-nmap-atacante-y-syslog-pfsense-tcpdump.png`: nmap de Kali + `tcpdump` viendo el syslog llegar al 514
+- `../evidence/fase2-04-alertas-pfsense-en-wazuh.png`: alertas `100100`/`100101` en el dashboard tras un nmap real
+- `../evidence/fase2-05-dominio-banco-lab-nltest.png`: bosque `banco.lab` promovido: `nltest /dsgetdc` con flags PDC GC KDC
+- `../evidence/fase2-06-estacion-unida-jperez.png`: estación unida al dominio: sesión `banco\jperez` con `dsgetdc` OK y `sc_verify` SUCCESS
 
 ## Por qué pfSense no generaba alertas (y cómo lo resolví)
 
@@ -112,9 +112,9 @@ Verificado con `wazuh-logtest` (Phase 2 con los campos + Phase 3 regla `100100` 
 generated*) y en vivo con un `nmap -sS` de Kali: en el dashboard aparecieron los bloqueos `100100` y
 la `100101` de escaneo. **Nota de tuning:** la `100100` a nivel 5 dispara una alerta por puerto; en
 producción el evento individual iría a nivel bajo y la alerta útil sería la correlación (el escaneo),
-para no inundar al analista — por eso Wazuh trae los eventos de firewall a nivel 0 de fábrica.
+para no inundar al analista; por eso Wazuh trae los eventos de firewall a nivel 0 de fábrica.
 
-## Unión de la estación Win10 al dominio (03/08) — receta y troubleshooting
+## Unión de la estación Win10 al dominio (03/08): receta y troubleshooting
 
 La estación (`10.30.0.50`, zona CORP) quedó unida a `banco.lab` con login de dominio funcionando.
 Lo valioso de la sesión fue el diagnóstico: el "contraseña incorrecta" que bloqueaba la unión
@@ -126,11 +126,11 @@ resultó ser **tres causas apiladas**, y ninguna era la contraseña.
    `VBoxManage showvminfo "estacion-corp" | grep "NIC 1"` → debe decir `Internal Network 'lab-corp'`.
    Se puede recablear en caliente: `VBoxManage controlvm "estacion-corp" nic1 intnet lab-corp`.
 2. **IP estática** (en la zona no hay DHCP): `10.30.0.50/24`, gateway `10.30.0.1` (pfSense CORP) y
-   **DNS `10.30.0.10` — el DC.** El DNS es el paso crítico: sin él Windows no localiza el dominio.
+   **DNS `10.30.0.10` (el DC).** El DNS es el paso crítico: sin él Windows no localiza el dominio.
    Para la unión en sí pfSense puede estar apagada: estación y DC se hablan directo en `lab-corp`.
 3. **Prerrequisitos en el DC:** el usuario debe existir (`Get-ADUser jperez`); si no, crearlo en su
    OU (`dsa.msc` → New → Organizational Unit `Empleados` → New → User). Para depurar, contraseña
-   sin símbolos (mayúsculas+minúsculas+números ya cumplen la complejidad) — inmune a los layouts.
+   sin símbolos (mayúsculas+minúsculas+números ya cumplen la complejidad), inmune a los layouts.
 4. **Prueba de resolución:** `ping 10.30.0.10` y `nslookup banco.lab` (debe devolver `10.30.0.10`;
    el "Server: UnKnown" es solo falta de zona inversa, cosmético).
 5. **Unión:** `sysdm.cpl` → Computer Name → Change → Domain `banco.lab` → credenciales en formato
@@ -140,7 +140,7 @@ resultó ser **tres causas apiladas**, y ninguna era la contraseña.
 ### Troubleshooting real (lo que pasó, en orden de aparición)
 | Síntoma | Causa real | Fix |
 |---|---|---|
-| Login `jperez`: "user name or password is incorrect" (sesión anterior) | El usuario nunca se creó en AD (y la máquina ni estaba unida) — Windows da el mismo error genérico por seguridad | Crear OU + usuario; verificar con `Get-ADUser` antes de culpar a la contraseña |
+| Login `jperez`: "user name or password is incorrect" (sesión anterior) | El usuario nunca se creó en AD (y la máquina ni estaba unida); Windows da el mismo error genérico por seguridad | Crear OU + usuario; verificar con `Get-ADUser` antes de culpar a la contraseña |
 | `ping 10.30.0.10` timeout; `ipconfig` muestra `10.0.2.15`, gw `10.0.2.2`, DNS `10.0.2.3` | Esa tripleta es la firma del **NAT por defecto** de VirtualBox: la VM nunca estuvo en `lab-corp` | `VBoxManage controlvm ... nic1 intnet lab-corp` (en caliente) + IP estática |
 | Tras el recableo: `ping` "transmit failed. General failure" | El adaptador conserva estado viejo del NAT | Deshabilitar/habilitar el adaptador en `ncpa.cpl` |
 | El join rechaza `banco\administrator` | El formato NetBIOS no fue aceptado en este entorno | Usar el **UPN**: `administrator@banco.lab` |
@@ -155,7 +155,7 @@ resultó ser **tres causas apiladas**, y ninguna era la contraseña.
 
 > **Hallazgo posterior (auditando la evidencia `fase2-06`):** el `dsgetdc` de hoy responde
 > `DC: \\jperez.banco.lab`, pero la evidencia `fase2-05` (25/07) muestra `\\DC01.banco.lab` con el
-> **mismo Dom GUID y la misma IP** — es la misma máquina: el DC fue **renombrado a "jperez" por
+> **mismo Dom GUID y la misma IP**, es decir, la misma máquina: el DC fue **renombrado a "jperez" por
 > accidente** (probablemente al confundir el campo de nombre de equipo mientras se creaba el
 > usuario). El dominio funciona igual (los SRV de DNS se re-registraron bajo el nombre nuevo), pero
 > queda programada la corrección: `Rename-Computer -NewName DC01 -Restart` en el DC y re-verificar

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-parse_nessus.py — Reporte de gestión de vulnerabilidades desde un export de Nessus.
+parse_nessus.py: reporte de gestión de vulnerabilidades desde un export de Nessus.
 
 Toma el CSV exportado por Nessus Essentials y genera un reporte priorizado por
-riesgo, dando MÁS peso a los activos del CDE (entorno de datos de tarjeta) — la
+riesgo, dando MÁS peso a los activos del CDE (entorno de datos de tarjeta), la
 priorización por contexto de negocio es justo lo que distingue a un analista de
 un simple ejecutor de escáner (y es lenguaje PCI DSS Req. 11.2 / 6.1).
 
@@ -91,7 +91,7 @@ def render_markdown(scored: list, cde_net) -> str:
         "2. Parchear/mitigar → documentar la acción.",
         "3. Re-escanear y adjuntar el antes/después.",
         "",
-        "_Generado con parse_nessus.py — proyecto SOC bancario._",
+        "_Generado con parse_nessus.py (proyecto SOC bancario)._",
     ]
     return "\n".join(l for l in lines if l is not None)
 

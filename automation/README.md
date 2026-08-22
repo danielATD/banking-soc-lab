@@ -1,6 +1,6 @@
-# automation/ — Componente Python / SOAR del SOC bancario
+# Componente Python / SOAR del SOC bancario
 
-Scripts en Python que cubren el requisito **"automatización (Python es un plus)"** de la vacante.
+Scripts en Python que cubren la parte de automatización del trabajo de un SOC: enriquecimiento de IOCs, triage automático y reportes.
 Todos leen sus claves desde variables de entorno (`.env`); ninguna queda hardcodeada.
 
 | Script | Qué hace | Requisito que prueba |
@@ -44,4 +44,4 @@ Wazuh (alerta) ──webhook──► wazuh_soar_handler.py ──► enrich_ioc
                                      └──► thehive_client.py (crea caso) ──► notifica analista
 ```
 
-Para la config de Wazuh (`ossec.conf`) que envía las alertas, ver `docs/06-soar-automation.md`.
+La config de Wazuh (`ossec.conf`) que envía las alertas se documentará al montar la fase SOAR.

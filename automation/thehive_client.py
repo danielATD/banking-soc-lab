@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-thehive_client.py — Cliente mínimo para crear casos/alertas en TheHive (REST v1).
+thehive_client.py: cliente mínimo para crear casos/alertas en TheHive (REST v1).
 
 Lo usa el pipeline SOAR para abrir un caso cuando una alerta de Wazuh se
 enriquece como maliciosa. Sin dependencias externas más allá de requests, para

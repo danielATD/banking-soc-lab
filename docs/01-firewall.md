@@ -1,4 +1,4 @@
-# Fase 1 — Red segmentada + firewall (pfSense)
+# Fase 1: red segmentada + firewall (pfSense)
 
 > **Registro técnico vivo de la fase**: qué se hizo, dónde se configura cada cosa y cómo repetirlo.
 > Se actualiza al cierre de cada bloque de trabajo. Al terminar la fase se convierte en el writeup
@@ -27,11 +27,11 @@ Nemotécnico: **segundo octeto = número de VLAN del diseño** (10/20/30/40).
 
 Toda interfaz del lab existe en dos lugares distintos, y se configura en este orden:
 
-**Capa 1 — VirtualBox (el "hardware"):** define qué placas de red (NICs) tiene la VM y a qué red
+**Capa 1, VirtualBox (el "hardware"):** define qué placas de red (NICs) tiene la VM y a qué red
 virtual se conecta cada cable. Se configura con la VM **apagada**, desde la terminal del host
 con `vboxmanage` (o la GUI de VirtualBox, que solo muestra 4 adaptadores; la CLI llega a 8).
 
-**Capa 2 — pfSense (el sistema operativo):** ve esas NICs como `em0`, `em1`, `em2`… y decide qué
+**Capa 2, pfSense (el sistema operativo):** ve esas NICs como `em0`, `em1`, `em2`… y decide qué
 rol cumple cada una (WAN/LAN/OPT), su IP y sus reglas. Se configura en la consola de la VM
 (opciones 1 y 2 del menú) o en el GUI web.
 
@@ -54,10 +54,10 @@ ciegas:** se verifica cruzando las **MAC** que muestra pfSense contra `vboxmanag
 
 ## Lo que se hizo, paso a paso (y dónde se repite cada cosa)
 
-### 1. Redes virtuales en el host (capa VirtualBox) — terminal del host, VM apagada
+### 1. Redes virtuales en el host (capa VirtualBox): terminal del host, VM apagada
 ```bash
 # Permiso de rango para redes host-only (una sola vez; VBox ≥6.1.28 solo permite
-# 192.168.56.0/21 por defecto — sin esto, E_ACCESSDENIED):
+# 192.168.56.0/21 por defecto; sin esto, E_ACCESSDENIED):
 sudo mkdir -p /etc/vbox && echo "* 10.40.0.0/24" | sudo tee /etc/vbox/networks.conf
 
 # Red del analista (host-only): crea vboxnet0 y le da IP 10.40.0.2 A LA PC:
@@ -74,18 +74,18 @@ vboxmanage modifyvm pfSense --nic5 hostonly --hostonlyadapter5 vboxnet0
 vboxmanage showvminfo pfSense | grep "NIC [1-5]"
 ```
 
-### 2. Asignación de roles (capa pfSense) — consola de la VM, opción `1) Assign Interfaces`
+### 2. Asignación de roles (capa pfSense): consola de la VM, opción `1) Assign Interfaces`
 Respuestas usadas: VLANs=`n` · WAN=`em0` · LAN=`em4` · OPT1=`em1` · OPT2=`em2` · OPT3=`em3`.
 
 **Decisión de diseño:** la zona SOC se asignó como **LAN** porque pfSense le aplica a "LAN" la regla
 anti-lockout (garantiza acceso al GUI web), y la confianza le corresponde a la zona de gestión.
 Las OPT nacen **sin reglas = todo bloqueado** (default-deny de fábrica).
 
-### 3. IP de la LAN — consola, opción `2) Set interface(s) IP address`
+### 3. IP de la LAN: consola, opción `2) Set interface(s) IP address`
 LAN → DHCP=`n` (pfSense es el router: IP estática) → `10.40.0.1` → bits `24` → gateway vacío
 (no tiene "río arriba" en esa red) → DHCP server=`n` (la PC ya tiene IP fija) → revert HTTP=`n`.
 
-### 4. Wizard inicial — GUI web `https://10.40.0.1` (cert autofirmado: aceptar)
+### 4. Wizard inicial: GUI web `https://10.40.0.1` (cert autofirmado: aceptar)
 - Hostname `fw-banco` · Domain `banco.lab` (dominio inventado; no usar `.local`, choca con mDNS)
 - DNS `1.1.1.1` / `8.8.8.8` · **Override DNS: desmarcado** (que el NAT no los pise)
 - NTP default · TZ `America/Panama` (hora uniforme = timelines correlacionables en el SOC)
@@ -94,8 +94,8 @@ LAN → DHCP=`n` (pfSense es el router: IP estática) → `10.40.0.1` → bits `
   y con ellos marcados los ataques de Kali desde la WAN se descartarían antes de generar alertas)
 - Contraseña de admin cambiada (nunca dejar la default en un firewall).
 
-### 5. Habilitar las zonas OPT — GUI: `Interfaces → OPT1/OPT2/OPT3`
-Para cada una: Enable (marcar) · Description (`DMZ`/`CDE`/`CORP` — renombra la interfaz en todo el GUI) ·
+### 5. Habilitar las zonas OPT en la GUI: `Interfaces → OPT1/OPT2/OPT3`
+Para cada una: Enable (marcar) · Description (`DMZ`/`CDE`/`CORP`; renombra la interfaz en todo el GUI) ·
 `Static IPv4` · IP de la tabla (`10.10.0.1/24`, `10.20.0.1/24`, `10.30.0.1/24`) · gateway `None` ·
 Save → Apply.
 
@@ -117,11 +117,11 @@ Save → Apply.
 
 Principios aplicados (cómo evalúa pfSense):
 1. Reglas **por interfaz**, aplican al tráfico que **entra** por ella (lo que esa zona intenta hacer).
-2. **Top-down, primera coincidencia gana** — el orden es la política.
+2. **Top-down, primera coincidencia gana**: el orden es la política.
 3. Sin coincidencia → **implicit deny** (bloqueado). Stateful: las respuestas de conexiones
    permitidas vuelven solas.
 
-### Aliases — GUI `Firewall → Aliases`
+### Aliases (GUI `Firewall → Aliases`)
 - **`LAB_NETS`** (pestaña IP, type Network(s)): `10.10.0.0/24` DMZ · `10.20.0.0/24` CDE ·
   `10.30.0.0/24` CORP · `10.40.0.0/24` SOC.
 - **`EGRESO_WEB`** (pestaña Ports): `53` DNS · `80` HTTP · `443` HTTPS.
@@ -129,7 +129,7 @@ Principios aplicados (cómo evalúa pfSense):
 Por qué aliases: las reglas referencian el **nombre**; agregar una zona significa editar el alias
 una vez y no cada regla. Mejora la mantenibilidad y el propio alias documenta qué contiene.
 
-### Reglas por zona — GUI `Firewall → Rules → pestañas DMZ / CDE / CORP` (las mismas 2, en orden)
+### Reglas por zona: GUI `Firewall → Rules → pestañas DMZ / CDE / CORP` (las mismas 2, en orden)
 | # | Acción | Proto | Source | Destino | Puerto dest | Log | Descripción |
 |---|---|---|---|---|---|---|---|
 | 1 | **Block** | Any | `<Zona> subnets` | alias `LAB_NETS` | * | ✅ | Denegar y loggear trafico inter-zona (PCI DSS Req.1 - segmentacion) |
@@ -138,7 +138,7 @@ una vez y no cada regla. Mejora la mantenibilidad y el propio alias documenta qu
 - **El orden es la política:** el destino `any` de la regla 2 incluye a las otras zonas; el block
   de arriba atrapa el tráfico inter-zona antes (first match wins). Lo que llega vivo a la regla 2
   solo puede ir "hacia afuera".
-- **LAN/SOC: defaults, sin tocar** (anti-lockout + allow-all — es la estación del analista).
+- **LAN/SOC: defaults, sin tocar** (anti-lockout + allow-all; es la estación del analista).
 - Truco GUI (puerto alias): `Destination Port Range` → From **(other)** → tipear el alias (To se
   completa con lo mismo). El error típico es dejar el desplegable en "any" → el puerto queda `*`
   (nos pasó: la primera versión permitía egreso por todos los puertos, y la de DMZ era solo TCP).
@@ -151,7 +151,7 @@ Changes** (banner amarillo). Y si al recargar una regla no compila, pf **mantien
 completo** (Status → Filter Reload muestra el error). Nos pasó exactamente eso: 6 reglas "visibles"
 en la GUI y `pfctl -sr` sin ninguna; el banner pendiente en las capturas lo delató.
 
-### Verificación en el motor — GUI `Diagnostics → Command Prompt`
+### Verificación en el motor: GUI `Diagnostics → Command Prompt`
 ```sh
 pfctl -sr | grep USER_RULE      # toda regla creada por la GUI lleva label "USER_RULE: ..."
 pfctl -t LAB_NETS -T show       # contenido cargado de una tabla/alias
@@ -163,7 +163,7 @@ Resultado (22/07): las 6 reglas cargadas, block antes que pass en em1/em2/em3. C
 - `quick` = gana la primera coincidencia · `keep state` = stateful · `(if-bound)` = el estado
   queda atado a la interfaz donde nació.
 
-## Prueba de validación de la política (22/07) — fase 1 cerrada
+## Prueba de validación de la política (22/07): fase 1 cerrada
 
 **Montaje:** Kali (VM pre-armada, registrada con `Máquina → Agregar` sobre su `.vbox`) conectada
 **temporalmente** a `lab-dmz` en el rol de "servidor DMZ comprometido". Las reglas solo se
@@ -179,7 +179,7 @@ sudo nmcli con up dmz
 
 | Comando | Resultado | Qué demuestra |
 |---|---|---|
-| `ping -c 3 10.20.0.1` | ✅ 100% loss | Segmentación DMZ→CDE — bloqueado por la regla propia (tracker `1784751273`) |
+| `ping -c 3 10.20.0.1` | ✅ 100% loss | Segmentación DMZ→CDE, bloqueado por la regla propia (tracker `1784751273`) |
 | `ping -c 3 10.40.0.2` | ✅ 100% loss | La estación del analista (SOC) inalcanzable desde la DMZ |
 | `nslookup example.com` | ✅ resuelve vía 1.1.1.1 | Egreso UDP 53 permitido |
 | `curl -I https://example.com` | ✅ HTTP/2 200 | Egreso TCP 443 permitido |
@@ -194,13 +194,13 @@ la regla exacta que matcheó. **Bonus observado:** los broadcasts DHCP de Kali a
 DHCP, coherente con el diseño de IPs estáticas.
 
 ## Evidencia de la fase
-- `../evidence/fase1-01-pfsense-primer-boot-consola.png` — consola tras instalación, WAN/LAN default
-- `../evidence/fase1-02-dashboard-5-zonas-configuradas.png` — dashboard con las 5 interfaces e IPs
-- `../evidence/fase1-03-interface-assignments-mapa-em-zonas.png` — mapeo em↔zona con MACs
-- `../evidence/fase1-04-reglas-dmz.png` / `-cde.png` / `-corp.png` — tablas de reglas por zona (block+log → egreso restringido)
-- `../evidence/fase1-05-log-bloqueo-interzona.png` — log del firewall: bloqueos inter-zona por regla propia + egresos permitidos + default deny (con popup "Rule details")
-- `../evidence/fase1-06-kali-bloqueos-interzona.png` — Kali: IP estática y pings a CDE/SOC bloqueados
-- `../evidence/fase1-07-kali-egreso-y-deny-implicito.png` — Kali: DNS/HTTPS funcionando, ICMP a internet muerto
+- `../evidence/fase1-01-pfsense-primer-boot-consola.png`: consola tras instalación, WAN/LAN default
+- `../evidence/fase1-02-dashboard-5-zonas-configuradas.png`: dashboard con las 5 interfaces e IPs
+- `../evidence/fase1-03-interface-assignments-mapa-em-zonas.png`: mapeo em↔zona con MACs
+- `../evidence/fase1-04-reglas-dmz.png` / `-cde.png` / `-corp.png`: tablas de reglas por zona (block+log → egreso restringido)
+- `../evidence/fase1-05-log-bloqueo-interzona.png`: log del firewall: bloqueos inter-zona por regla propia + egresos permitidos + default deny (con popup "Rule details")
+- `../evidence/fase1-06-kali-bloqueos-interzona.png`: Kali: IP estática y pings a CDE/SOC bloqueados
+- `../evidence/fase1-07-kali-egreso-y-deny-implicito.png`: Kali: DNS/HTTPS funcionando, ICMP a internet muerto
 
 ## Incidentes de la fase (lo que rompió y cómo se arregló)
 - **Kernel 7.0 vs DKMS (18–20/07):** el kernel más nuevo del host rompía el módulo `vboxdrv`;

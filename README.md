@@ -18,14 +18,14 @@ pfSense bloquea cada puerto y lo registra. Ese log viaja por syslog hasta Wazuh,
 
 *Las reglas `100100` (bloqueo, nivel 5) y `100101` ("posible escaneo de puertos", nivel 10) disparando tras el nmap. El `srcip` 10.0.2.4 es la Kali.*
 
-El escaneo entra por un lado y sale como una alerta con nombre y severidad por el otro. Ese circuito —evento, decoder, regla, alerta— es de lo que trata el lab.
+El escaneo entra por un lado y sale como una alerta con nombre y severidad por el otro. Ese circuito (evento, decoder, regla, alerta) es de lo que trata el lab.
 
 ## arquitectura
 
 Cuatro zonas internas más la WAN. El segundo octeto es el número de VLAN, y pfSense es el `.1` de cada red:
 
 ```
-"Internet" simulada (lab-wan, NAT)   10.0.2.0/24    Kali — atacante externo (.4)
+"Internet" simulada (lab-wan, NAT)   10.0.2.0/24    Kali, atacante externo (.4)
         |
    [ pfSense ]   fw-banco.banco.lab
         |
@@ -44,9 +44,9 @@ Cada zona es un dominio de confianza distinto. El CDE no habla con nadie salvo l
 | pfSense | 2.8.1 | Firewall y gateway de cada zona | `.1` de cada red |
 | Wazuh | 4.14 | SIEM/EDR (Manager, Indexer, Dashboard) | SOC · 10.40.0.10 |
 | Windows Server | 2022 | Domain Controller, bosque `banco.lab` | CORP · 10.30.0.10 |
-| Windows 10 Pro | — | Estación de empleado, unida al dominio | CORP · 10.30.0.50 |
+| Windows 10 Pro | - | Estación de empleado, unida al dominio | CORP · 10.30.0.50 |
 | Kali Linux | 2026.2 | Atacante externo | WAN · 10.0.2.4 |
-| VirtualBox | — | Hipervisor (host de 30 GB) | — |
+| VirtualBox | - | Hipervisor (host de 30 GB) | - |
 
 Wazuh corre sobre Ubuntu Server 26.04. Le di 8 GB de RAM porque el Indexer (OpenSearch) es de Java y con menos se ahoga.
 
@@ -54,12 +54,12 @@ Wazuh corre sobre Ubuntu Server 26.04. Le di 8 GB de RAM porque el Indexer (Open
 
 | Regla | Qué caza | MITRE ATT&CK | Nivel | Marco |
 |---|---|---|---|---|
-| `100100` | Cada bloqueo del firewall (origen → destino:puerto) | — | 5 | PCI DSS 1.4 |
+| `100100` | Cada bloqueo del firewall (origen → destino:puerto) | - | 5 | PCI DSS 1.4 |
 | `100101` | 15+ bloqueos del mismo origen en 60 s (escaneo) | T1595 · Active Scanning | 10 | PCI DSS 11.4 |
 
 Las dos cuelgan de un decoder propio, `pfsense-fw`. Decoder y reglas están en [`wazuh/`](wazuh/).
 
-Por qué un decoder propio y no el de Wazuh: pfSense envía el `filterlog` por syslog **sin el campo hostname** (comportamiento conocido de FreeBSD). El decoder oficial engancha por `program_name`, que sin hostname queda vacío, así que nunca arrancaba. Lo normalicé del lado del SIEM —que es lo que hace un SOC cuando no controla el equipo de origen— enganchando por el patrón del log en vez de por el hostname. El detalle está en [`docs/02-siem-wazuh.md`](docs/02-siem-wazuh.md).
+Por qué un decoder propio y no el de Wazuh: pfSense envía el `filterlog` por syslog **sin el campo hostname** (comportamiento conocido de FreeBSD). El decoder oficial engancha por `program_name`, que sin hostname queda vacío, así que nunca arrancaba. Lo normalicé del lado del SIEM, que es lo que hace un SOC cuando no controla el equipo de origen, enganchando por el patrón del log en vez de por el hostname. El detalle está en [`docs/02-siem-wazuh.md`](docs/02-siem-wazuh.md).
 
 ## cómo validé la segmentación
 
@@ -71,9 +71,9 @@ Por qué un decoder propio y no el de Wazuh: pfSense envía el `filterlog` por s
 
 ## estado
 
-**Fase 1 — Segmentación y firewall: cerrada.** Cuatro zonas más la WAN, reglas de bloqueo inter-zona verificadas en el motor `pf` (no solo en la GUI), egreso controlado.
+**Fase 1 (segmentación y firewall): cerrada.** Cuatro zonas más la WAN, reglas de bloqueo inter-zona verificadas en el motor `pf` (no solo en la GUI), egreso controlado.
 
-**Fase 2 — SIEM y Active Directory: en curso.** Wazuh desplegado, ingesta de pfSense por syslog, decoder y reglas de detección funcionando de punta a punta. Dominio `banco.lab` montado y estaciones uniéndose.
+**Fase 2 (SIEM y Active Directory): en curso.** Wazuh desplegado, ingesta de pfSense por syslog, decoder y reglas de detección funcionando de punta a punta. Dominio `banco.lab` montado y estaciones uniéndose.
 
 Lo que sigue: agente Wazuh y Sysmon en los Windows (telemetría de endpoint), FIM sobre el CDE, y una mini-fase en AWS (IAM/MFA, EC2, CloudTrail hacia Wazuh) para cubrir la parte cloud.
 
@@ -87,7 +87,7 @@ Este lab es inseguro a propósito: contraseñas débiles, servicios expuestos en
 
 ## mapa del repo
 
-- [`docs/`](docs/) — el detalle técnico por fase: firewall, SIEM, mapa de red.
-- [`wazuh/`](wazuh/) — decoders y reglas de detección propias.
-- [`evidence/`](evidence/) — capturas de cada paso con resultado visible.
-- [`automation/`](automation/) — scripts de la fase SOAR (en preparación).
+- [`docs/`](docs/): el detalle técnico por fase: firewall, SIEM, mapa de red.
+- [`wazuh/`](wazuh/): decoders y reglas de detección propias.
+- [`evidence/`](evidence/): capturas de cada paso con resultado visible.
+- [`automation/`](automation/): scripts de la fase SOAR (en preparación).

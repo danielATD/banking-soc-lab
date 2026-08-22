@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-enrich_ioc.py — Enriquecimiento de IOCs (IP o hash) con VirusTotal + AbuseIPDB.
+enrich_ioc.py: enriquecimiento de IOCs (IP o hash) con VirusTotal + AbuseIPDB.
 
 Componente central del pipeline SOAR del proyecto SOC bancario. Recibe un
 indicador de compromiso (una IP o un hash de archivo), consulta la reputación en
-VirusTotal (v3) y —si es IP— en AbuseIPDB, y devuelve un veredicto normalizado.
+VirusTotal (v3) y, si es IP, en AbuseIPDB, y devuelve un veredicto normalizado.
 
 Uso como CLI:
     python3 enrich_ioc.py 8.8.8.8

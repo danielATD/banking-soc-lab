@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-wazuh_soar_handler.py — El pipeline SOAR completo, en Python.
+wazuh_soar_handler.py: el pipeline SOAR completo, en Python.
 
 Recibe alertas de Wazuh por webhook (directo o vía Shuffle), extrae los IOCs
-(IP de origen y/o hash del archivo), los enriquece con enrich_ioc.py y —si el
-veredicto es malicioso o sospechoso— abre un caso en TheHive y registra la
+(IP de origen y/o hash del archivo), los enriquece con enrich_ioc.py y, si el
+veredicto es malicioso o sospechoso, abre un caso en TheHive y registra la
 notificación al analista.
 
 Es el corazón del componente "automatización (Python es un plus)" del CV:
-demuestra que sabés escribir la lógica del SOAR, no solo arrastrar cajas en
+demuestra que sé escribir la lógica del SOAR, no solo arrastrar cajas en
 una GUI. Puede correr solo (servidor Flask) o ser invocado por Shuffle.
 
 Arranque:
@@ -16,7 +16,7 @@ Arranque:
     export FLASK_ENV=lab
     python3 wazuh_soar_handler.py          # escucha en 127.0.0.1:5000/webhook
 
-Config Wazuh (ossec.conf) para enviar alertas al webhook — ver docs/06-soar-automation.md.
+Config Wazuh (ossec.conf) para enviar alertas al webhook: pendiente de documentar en la fase SOAR.
 
 Prueba local sin Wazuh:
     curl -X POST http://127.0.0.1:5000/webhook -H 'Content-Type: application/json' \
@@ -95,7 +95,7 @@ def handle_alert(alert: dict) -> dict:
     agent = alert.get("agent", {}).get("name", "desconocido")
 
     iocs = extract_iocs(alert)
-    log.info("Alerta: '%s' (nivel %s, agente %s) — IOCs: %s",
+    log.info("Alerta: '%s' (nivel %s, agente %s); IOCs: %s",
              rule_desc, rule_level, agent, iocs or "ninguno")
 
     enrichments, worst = [], "clean"

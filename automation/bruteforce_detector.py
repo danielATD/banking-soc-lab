@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-bruteforce_detector.py — Análisis de logs en Python: detección de fuerza bruta.
+bruteforce_detector.py: análisis de logs en Python: detección de fuerza bruta.
 
 Parsea un archivo de log de autenticación Linux (/var/log/auth.log) y detecta
-IPs con N o más intentos fallidos dentro de una ventana de tiempo — el patrón
+IPs con N o más intentos fallidos dentro de una ventana de tiempo, el patrón
 clásico de fuerza bruta SSH (MITRE ATT&CK T1110). Extrae las IPs sospechosas
 para alimentar enrich_ioc.py.
 
