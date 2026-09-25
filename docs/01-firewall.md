@@ -66,7 +66,7 @@ vboxmanage showvminfo pfSense | grep "NIC [1-5]"
 ```
 
 ### 2. Asignación de roles (capa pfSense): consola de la VM, opción `1) Assign Interfaces`
-Respuestas usadas: VLANs=`n` · WAN=`em0` · LAN=`em4` · OPT1=`em1` · OPT2=`em2` · OPT3=`em3`.
+Respuestas usadas: VLANs=`n`, WAN=`em0`, LAN=`em4`, OPT1=`em1`, OPT2=`em2`, OPT3=`em3`.
 
 **Decisión de diseño:** la zona SOC se asignó como **LAN** porque pfSense le aplica a "LAN" la regla
 anti-lockout (garantiza acceso al GUI web), y la confianza le corresponde a la zona de gestión.
@@ -77,17 +77,17 @@ LAN → DHCP=`n` (pfSense es el router: IP estática) → `10.40.0.1` → bits `
 (no tiene "río arriba" en esa red) → DHCP server=`n` (la PC ya tiene IP fija) → revert HTTP=`n`.
 
 ### 4. Wizard inicial: GUI web `https://10.40.0.1` (cert autofirmado: aceptar)
-- Hostname `fw-banco` · Domain `banco.lab` (dominio inventado; no usar `.local`, choca con mDNS)
-- DNS `1.1.1.1` / `8.8.8.8` · **Override DNS: desmarcado** (que el NAT no los pise)
-- NTP default · TZ `America/Panama` (hora uniforme = timelines correlacionables en el SOC)
-- WAN: tipo `DHCP` · MAC/MTU/MSS vacíos · **Block RFC1918 y Block bogons: desmarcados**
+- Hostname `fw-banco`, Domain `banco.lab` (dominio inventado; no usar `.local`, choca con mDNS)
+- DNS `1.1.1.1` / `8.8.8.8`, **Override DNS: desmarcado** (que el NAT no los pise)
+- NTP default, TZ `America/Panama` (hora uniforme = timelines correlacionables en el SOC)
+- WAN: tipo `DHCP`, MAC/MTU/MSS vacíos, **Block RFC1918 y Block bogons: desmarcados**
   (en producción van marcados por anti-spoofing; aquí el "internet" entero es red privada 10.0.2.x,
   y con ellos marcados los ataques de Kali desde la WAN se descartarían antes de generar alertas)
 - Contraseña de admin cambiada (nunca dejar la default en un firewall).
 
 ### 5. Habilitar las zonas OPT en la GUI: `Interfaces → OPT1/OPT2/OPT3`
-Para cada una: Enable (marcar) · Description (`DMZ`/`CDE`/`CORP`; renombra la interfaz en todo el GUI) ·
-`Static IPv4` · IP de la tabla (`10.10.0.1/24`, `10.20.0.1/24`, `10.30.0.1/24`) · gateway `None` ·
+Para cada una: Enable (marcar), Description (`DMZ`/`CDE`/`CORP`; renombra la interfaz en todo el GUI) ,
+`Static IPv4`, IP de la tabla (`10.10.0.1/24`, `10.20.0.1/24`, `10.30.0.1/24`), gateway `None` ,
 Save → Apply.
 
 ---
@@ -113,9 +113,9 @@ Principios aplicados (cómo evalúa pfSense):
    permitidas vuelven solas.
 
 ### Aliases (GUI `Firewall → Aliases`)
-- **`LAB_NETS`** (pestaña IP, type Network(s)): `10.10.0.0/24` DMZ · `10.20.0.0/24` CDE ·
-  `10.30.0.0/24` CORP · `10.40.0.0/24` SOC.
-- **`EGRESO_WEB`** (pestaña Ports): `53` DNS · `80` HTTP · `443` HTTPS.
+- **`LAB_NETS`** (pestaña IP, type Network(s)): `10.10.0.0/24` DMZ, `10.20.0.0/24` CDE ,
+  `10.30.0.0/24` CORP, `10.40.0.0/24` SOC.
+- **`EGRESO_WEB`** (pestaña Ports): `53` DNS, `80` HTTP, `443` HTTPS.
 
 Por qué aliases: las reglas referencian el **nombre**; agregar una zona significa editar el alias
 una vez y no cada regla. Mejora la mantenibilidad y el propio alias documenta qué contiene.
@@ -151,7 +151,7 @@ Resultado (22/07): las 6 reglas cargadas, block antes que pass en em1/em2/em3. C
 - **Redes y aliases = tablas** (`<OPT1__NETWORK>`, `<LAB_NETS>`), no IPs literales en la regla:
   por eso un grep por "10.10" no las encuentra (solo pesca las antispoof, que sí llevan CIDR).
 - **El alias de puertos se expande:** 1 regla de GUI → 6 reglas pf (TCP y UDP × domain/http/https).
-- `quick` = gana la primera coincidencia · `keep state` = stateful · `(if-bound)` = el estado
+- `quick` = gana la primera coincidencia, `keep state` = stateful, `(if-bound)` = el estado
   queda atado a la interfaz donde nació.
 
 ## Prueba de validación de la política (22/07): fase 1 cerrada

@@ -1,9 +1,9 @@
-# Fase 2: SIEM + EDR + Active Directory (Wazuh + Sysmon + AD)
+# Fase 2: SIEM y Active Directory
 
 > Notas técnicas de la fase. Inicio: 22 jul 2026.
 
 ## Objetivo de la fase
-Desplegar Wazuh (Manager + Indexer + Dashboard) como SIEM/EDR central en la zona SOC y hacer que
+Desplegar Wazuh (Manager, Indexer y Dashboard) como SIEM central en la zona SOC y hacer que
 ingiera telemetría de las 4 zonas: logs de pfSense (firewall), endpoints Windows (AD + Sysmon) y
 Linux (CDE), con FIM sobre el CDE y una respuesta activa básica.
 
@@ -19,8 +19,8 @@ Linux (CDE), con FIM sobre el CDE y una respuesta activa básica.
 | Host | IP | Rol |
 |---|---|---|
 | pfSense | 10.40.0.1 | Gateway/firewall de la zona |
-| PC de Daniel | 10.40.0.2 | Estación del analista (navega el dashboard) |
-| **Wazuh** | **10.40.0.10** | **SIEM/EDR (esta fase)** |
+| Mi PC | 10.40.0.2 | Estación del analista (navega el dashboard) |
+| **Wazuh** | **10.40.0.10** | **SIEM (esta fase)** |
 
 ## Componentes de Wazuh
 - **Wazuh Indexer**: motor de búsqueda/almacenamiento (fork de OpenSearch). Guarda las alertas.
@@ -42,9 +42,9 @@ curl -sO https://packages.wazuh.com/4.14/wazuh-install.sh && sudo bash ./wazuh-i
 ## Estado / progreso
 - [x] Descargar ISO Ubuntu Server 26.04 LTS → `~/Documents/SOC-lab/isos/`
 - [x] Crear la VM `Wazuh` (host-only vboxnet0, 8 GB RAM, 4 vCPU, disco 50 GB dinámico)
-- [x] Instalar Ubuntu Server 26.04 (23/07): IP estática `10.40.0.10/24` gw `10.40.0.1` DNS 1.1.1.1 ·
+- [x] Instalar Ubuntu Server 26.04 (23/07): IP estática `10.40.0.10/24` gw `10.40.0.1` DNS 1.1.1.1 ,
       LVM agrandado a disco completo (el instalador deja `/` en ~24G por defecto → Edit
-      `ubuntu-lv` al máximo; quedó 48G) · OpenSSH activado · sin snaps (superficie mínima) · sin LUKS
+      `ubuntu-lv` al máximo; quedó 48G), OpenSSH activado, sin snaps (superficie mínima), sin LUKS
       (VM de lab; el cifrado es para robo físico)
 - [x] Verificación pre-Wazuh: IP ok, `/`=48G, **egreso a internet A TRAVÉS de pfSense**
       (gw 10.40.0.1 → NAT WAN) y DNS resolviendo; el servidor navega por el firewall del banco
